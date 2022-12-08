@@ -6,3 +6,5 @@ numpy
 scipy
 control
 pygame
+
+In the video, the user moves the cart to the left, then the LQR balances the cart to the middle upright position.

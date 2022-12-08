@@ -8,7 +8,7 @@ import random
 from control import matlab, lqr
 
 
-#Simulates a cartpole. Player control, algorithmic control can be toggled via the up and down keys.
+# Simulates a cartpole. Player control, algorithmic control can be toggled via the up and down keys.
 # Miscellaneous settings
 HEIGHT = 400
 WIDTH = 600
@@ -23,6 +23,8 @@ SCALE = 20
 pygame.init()
 
 # Contains the logic of the cartpole: the simulation and control rules
+
+
 class CartPole:
     g = 9.81
     massCart = 1
@@ -35,7 +37,7 @@ class CartPole:
     downwards = -1
 
     # sim modes: default and linear
-    def __init__(self, init_state = None, constants = None, sim="default"):
+    def __init__(self, init_state=None, constants=None, sim="default"):
         if init_state:
             self.state = init_state
         else:
@@ -90,7 +92,7 @@ class CartPole:
         self.state_penalty = np.array(
             [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 10, 0], [0, 0, 0, 100]]
         )
-        self.force_penalty = np.array([0.1])
+        self.force_penalty = np.array([0.05])
 
         # reinforcement
 
@@ -123,9 +125,10 @@ class CartPole:
         self.mode = mode
         print(self.mode)
         if mode == "linear_place":
-            #negative eigen values for stability
+            # negative eigen values for stability
             desired = np.array([[-2, -2.1, -2.2, -2.3]])
-            self.gain = np.squeeze(np.array(matlab.place(self.A_lin, self.B_lin, desired)))
+            self.gain = np.squeeze(
+                np.array(matlab.place(self.A_lin, self.B_lin, desired)))
             self.target = target
             print(self.A_lin, self.B_lin, self.gain)
             # print("eigs",np.linalg.eig(self.A_lin-self.B_lin@self.gain[np.newaxis,:]))
@@ -233,14 +236,14 @@ def get_input():
         return 1
     return 0
 
+
 if __name__ == "__main__":
-    #Game initialization
+    # Game initialization
     Clock = pygame.time.Clock()
     displaysurface = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Game")
     cart_img = pygame.image.load("transport-industrial-truck.png")
     pole_img = pygame.image.load("pole.png")
-
 
     PT1 = platform()
     # System initialization, MODIFY IC HERE
