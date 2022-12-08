@@ -20,6 +20,7 @@ frame = 0
 USER = True
 SCALE = 20
 # scale is about 10 pixels per meter
+pygame.init()
 
 # Contains the logic of the cartpole: the simulation and control rules
 class CartPole:
@@ -34,7 +35,7 @@ class CartPole:
     downwards = -1
 
     # sim modes: default and linear
-    def __init__(self, init_state=None, constants = None, sim="default"):
+    def __init__(self, init_state = None, constants = None, sim="default"):
         if init_state:
             self.state = init_state
         else:
@@ -118,8 +119,9 @@ class CartPole:
     def dstate_linear(self, state, force):
         return self.A_lin @ state + self.B_lin[:, 0] * force
 
-    def setControl(self, mode, target=np.array([10, 0, 0, 0])):
+    def setControl(self, mode, target=np.array([15, 0, 0, 0])):
         self.mode = mode
+        print(self.mode)
         if mode == "linear_place":
             #negative eigen values for stability
             desired = np.array([[-2, -2.1, -2.2, -2.3]])
@@ -139,8 +141,7 @@ class CartPole:
             pass
 
     def control(self):
-        if "linear" in self.mode:
-            return (self.gain @ (self.target-self.state))
+        return (self.gain @ (self.target-self.state))
 
     def update(self, ext):
         if USER:
@@ -215,9 +216,25 @@ class platform(pygame.sprite.Sprite):
     def move(self):
         pass
 
-if '__name__' == '__main__':
+
+# Event handler for user input
+def get_input():
+    pressed_keys = pygame.key.get_pressed()
+    global USER
+    if pressed_keys[K_UP]:
+        USER = False
+    if pressed_keys[K_DOWN]:
+        USER = True
+    if not USER:
+        return 0
+    if pressed_keys[K_LEFT]:
+        return -1
+    elif pressed_keys[K_RIGHT]:
+        return 1
+    return 0
+
+if __name__ == "__main__":
     #Game initialization
-    pygame.init()
     Clock = pygame.time.Clock()
     displaysurface = pygame.display.set_mode((WIDTH, HEIGHT))
     pygame.display.set_caption("Game")
@@ -228,7 +245,7 @@ if '__name__' == '__main__':
     PT1 = platform()
     # System initialization, MODIFY IC HERE
     # system = CartPole([15, 0, np.pi, 2], sim="linear")
-    system = CartPole([15, 0, 0, 2], sim="default")
+    system = CartPole(init_state=[15, 0, 0, 2], sim="default")
     # system.setControl("linear_place")
     system.setControl("linear_qr")
     P1 = Player(cart_img, CART_WIDTH, CART_HEIGHT)
@@ -240,23 +257,6 @@ if '__name__' == '__main__':
 
     platforms = pygame.sprite.Group()
     platforms.add(PT1)
-
-    # Event handler for user input
-    def get_input():
-        pressed_keys = pygame.key.get_pressed()
-        global USER
-        if pressed_keys[K_UP]:
-            USER = False
-        if pressed_keys[K_DOWN]:
-            USER = True
-        if not USER:
-            return 0
-        if pressed_keys[K_LEFT]:
-            return -1
-        elif pressed_keys[K_RIGHT]:
-            return 1
-        return 0
-
 
     while True:
         frame += 1
