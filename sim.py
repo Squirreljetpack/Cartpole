@@ -9,8 +9,6 @@ from control import matlab, lqr
 
 
 #Simulates a cartpole. Player control, algorithmic control can be toggled via the up and down keys.
-
-pygame.init()
 # Miscellaneous settings
 HEIGHT = 400
 WIDTH = 600
@@ -36,9 +34,9 @@ class CartPole:
     downwards = -1
 
     # sim modes: default and linear
-    def __init__(self, params=None, sim="default"):
-        if params:
-            self.state = params
+    def __init__(self, init_state=None, constants = None, sim="default"):
+        if init_state:
+            self.state = init_state
         else:
             self.state = [
                 random.random() - 0.5,
@@ -47,6 +45,12 @@ class CartPole:
                 (random.random() - 0.5) * 0.5,
             ]
         self.sim = sim
+        if constants:
+            self.massCart = constants["massCart"]
+            self.massPole = constants["massPole"]
+            self.poleLength = constants["poleLength"]
+            self.dissipation = constants["dissipation"]
+            self.downwards = constants["downwards"]
 
         # Matrices of the linear approximation of state-space model
         self.A_lin = np.array(
@@ -211,70 +215,72 @@ class platform(pygame.sprite.Sprite):
     def move(self):
         pass
 
-#Game initialization
-Clock = pygame.time.Clock()
-displaysurface = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Game")
-cart_img = pygame.image.load("transport-industrial-truck.png")
-pole_img = pygame.image.load("pole.png")
+if '__name__' == '__main__':
+    #Game initialization
+    pygame.init()
+    Clock = pygame.time.Clock()
+    displaysurface = pygame.display.set_mode((WIDTH, HEIGHT))
+    pygame.display.set_caption("Game")
+    cart_img = pygame.image.load("transport-industrial-truck.png")
+    pole_img = pygame.image.load("pole.png")
 
 
-PT1 = platform()
-# System initialization, MODIFY IC HERE
-# system = CartPole([15, 0, np.pi, 2], sim="linear")
-system = CartPole([15, 0, 0, 2], sim="default")
-# system.setControl("linear_place")
-system.setControl("linear_qr")
-P1 = Player(cart_img, CART_WIDTH, CART_HEIGHT)
-P2 = Pole(pole_img, system.poleLength * SCALE)
+    PT1 = platform()
+    # System initialization, MODIFY IC HERE
+    # system = CartPole([15, 0, np.pi, 2], sim="linear")
+    system = CartPole([15, 0, 0, 2], sim="default")
+    # system.setControl("linear_place")
+    system.setControl("linear_qr")
+    P1 = Player(cart_img, CART_WIDTH, CART_HEIGHT)
+    P2 = Pole(pole_img, system.poleLength * SCALE)
 
-cart_sprites = pygame.sprite.Group()
-cart_sprites.add(P1)
-cart_sprites.add(P2)
+    cart_sprites = pygame.sprite.Group()
+    cart_sprites.add(P1)
+    cart_sprites.add(P2)
 
-platforms = pygame.sprite.Group()
-platforms.add(PT1)
+    platforms = pygame.sprite.Group()
+    platforms.add(PT1)
 
-# Event handler for user input
-def get_input():
-    pressed_keys = pygame.key.get_pressed()
-    global USER
-    if pressed_keys[K_UP]:
-        USER = False
-    if pressed_keys[K_DOWN]:
-        USER = True
-    if not USER:
+    # Event handler for user input
+    def get_input():
+        pressed_keys = pygame.key.get_pressed()
+        global USER
+        if pressed_keys[K_UP]:
+            USER = False
+        if pressed_keys[K_DOWN]:
+            USER = True
+        if not USER:
+            return 0
+        if pressed_keys[K_LEFT]:
+            return -1
+        elif pressed_keys[K_RIGHT]:
+            return 1
         return 0
-    if pressed_keys[K_LEFT]:
-        return -1
-    elif pressed_keys[K_RIGHT]:
-        return 1
-    return 0
 
 
-while True:
-    frame += 1
-    for event in pygame.event.get():
-        if event.type == QUIT:
-            pygame.quit()
-            sys.exit()
-        if event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_SPACE:
-                P1.jump()
+    while True:
+        frame += 1
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                pygame.quit()
+                sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_SPACE:
+                    P1.jump()
 
-    displaysurface.fill((255, 255, 255))
+        displaysurface.fill((255, 255, 255))
 
-    for entity in platforms:
-        displaysurface.blit(entity.surf, entity.rect)
+        for entity in platforms:
+            displaysurface.blit(entity.surf, entity.rect)
 
-    # cart system
-    P1.update(system.state[0] * SCALE)
-    P2.update(degrees(system.state[2]))
-    cart_sprites.draw(displaysurface)
+        # cart system
+        P1.update(system.state[0] * SCALE)
+        P2.update(degrees(system.state[2]))
+        cart_sprites.draw(displaysurface)
 
-    k = get_input()
-    system.update(k)
+        k = get_input()
+        system.update(k)
 
-    pygame.display.update()
-    # Limits tick rate
-    Clock.tick_busy_loop(50)
+        pygame.display.update()
+        # Limits tick rate
+        Clock.tick_busy_loop(50)
