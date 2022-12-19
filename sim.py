@@ -3,7 +3,7 @@ from pygame.locals import *
 import sys
 import random
 import numpy as np
-from math import degrees, radians, sin, cos
+from math import degrees, radians, sin, cos, remainder, tau
 import random
 from control import matlab, lqr
 
@@ -28,8 +28,8 @@ pygame.init()
 class CartPole:
     g = 9.81
     massCart = 1
-    massPole = 0.15
-    poleLength = 2.5
+    massPole = 0.1
+    poleLength = 2
     tau = 0.01
     forceMag = 30
     # variables in the linear approximation
@@ -39,14 +39,14 @@ class CartPole:
     # sim modes: default and linear
     def __init__(self, init_state=None, constants=None, sim="default"):
         if init_state:
-            self.state = init_state
+            self.state = np.array(init_state, dtype=np.float64)
         else:
-            self.state = [
+            self.state = np.array([
                 random.random() - 0.5,
                 (random.random() - 0.5) * 1,
                 radians(random.random() * 360),
                 (random.random() - 0.5) * 0.5,
-            ]
+            ], dtype=np.float64)
         self.sim = sim
         if constants:
             self.massCart = constants["massCart"]
@@ -92,9 +92,44 @@ class CartPole:
         self.state_penalty = np.array(
             [[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 10, 0], [0, 0, 0, 100]]
         )
-        self.force_penalty = np.array([0.05])
+        self.force_penalty = np.array([0.01])
 
         # reinforcement
+
+    def switch_dir(self):
+        self.downwards *= -1
+        self.A_lin = np.array(
+            [
+                [0, 1, 0, 0],
+                [
+                    0,
+                    -self.dissipation / self.massCart,
+                    self.massPole * self.g / self.massCart,
+                    0,
+                ],
+                [0, 0, 0, 1],
+                [
+                    0,
+                    -self.downwards
+                    * self.dissipation
+                    / (self.massCart * self.poleLength),
+                    -self.downwards
+                    * (self.massPole + self.massCart)
+                    * self.g
+                    / (self.poleLength * self.massCart),
+                    0,
+                ],
+            ]
+        )
+        # nx1
+        self.B_lin = np.array(
+            [
+                0,
+                1 / self.massCart,
+                0,
+                -self.downwards / (self.massCart * self.poleLength),
+            ]
+        )[:, np.newaxis]
 
     def ddt_calc(self, t, dt, f):
         num = (
@@ -121,7 +156,7 @@ class CartPole:
     def dstate_linear(self, state, force):
         return self.A_lin @ state + self.B_lin[:, 0] * force
 
-    def setControl(self, mode, target=np.array([15, 0, 0, 0])):
+    def setControl(self, mode, target=np.array([15, 0, 0, 0], dtype=np.float64)):
         self.mode = mode
         print(self.mode)
         if mode == "linear_place":
@@ -137,6 +172,12 @@ class CartPole:
                 self.A_lin, self.B_lin, self.state_penalty, self.force_penalty
             )
             self.gain = np.squeeze(np.array(K))
+            self.switch_dir()
+            K, S, E = lqr(
+                self.A_lin, self.B_lin, self.state_penalty, self.force_penalty
+            )
+            self.gain_down = np.squeeze(np.array(K))
+            self.switch_dir()
             self.target = target
             print(self.A_lin, self.B_lin, self.gain)
             # print("eigs:",S, E)
@@ -144,7 +185,22 @@ class CartPole:
             pass
 
     def control(self):
-        return (self.gain @ (self.target-self.state))
+        left = self.target.copy()
+        right = self.target.copy()
+        right[2] = np.pi/2
+        right[3] = -.1
+        left[2] = 3*np.pi/2
+        left[3] = .1
+        if abs(self.state[2]) > np.pi/2:
+            if self.state[2] < 0:
+                k = (self.gain_down @
+                     (right-self.state))
+            else:
+                k = (self.gain_down @
+                     (left-self.state))
+        else:
+            k = (self.gain @ (self.target-self.state))
+        return k
 
     def update(self, ext):
         if USER:
@@ -156,7 +212,7 @@ class CartPole:
         else:
             dstate = self.tau * self.dstate(self.state, force)
         self.state += dstate
-        # print(system.state, force)
+        self.state[2] = remainder(self.state[2], tau)
 
 
 class Pole(pygame.sprite.Sprite):
